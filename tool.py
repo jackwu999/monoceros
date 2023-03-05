@@ -141,13 +141,13 @@ if __name__ == '__main__':
             id="sma1_switch",
             switch=True,
             inline=True,
-            style = {'display':'inline-block', "width":'7%'}
+            style = {'display':'inline-block', "width":'80px'}
             ),
             dcc.Input(
                 id="sma_1", type="number",
                 debounce=True, placeholder="20",
                 min=2,
-                style = {'display':'inline-block', 'margin-right':'20px','margin-left':'10px', "width":'10%'}
+                style = {'display':'inline-block', 'margin-right':'20px','margin-left':'10px', "width":'80px'}
             ),
         ]),
         html.Span([
@@ -159,17 +159,104 @@ if __name__ == '__main__':
             id="sma2_switch",
             switch=True,
             inline=True,
-            style = {'display':'inline-block', "width":'7%'}
+            style = {'display':'inline-block', "width":'80px'}
             ),
             dcc.Input(
                 id="sma_2", type="number",
                 debounce=True, placeholder="20",
                 min=2,
-                style = {'display':'inline-block', 'margin-right':'20px','margin-left':'10px', "width":'10%'}
+                style = {'display':'inline-block', 'margin-right':'20px','margin-left':'10px', "width":'80px'}
             ),
         ]),
         dcc.Graph(id="graph"),
-    ],)
+        
+        html.H2('Query'),
+        html.Div([
+                dbc.Label("Assets:  "),
+                dbc.Checklist(
+                    options=[
+                        {"label": "BTC", "value": True},                
+                    ],
+                    value=[],
+                    id="query_symbol",
+                    inline=True,
+                    style = {'display':'inline-block', "width":'100px'}
+                ),
+                dbc.Checklist(
+                    options=[
+                        {"label": "DOGE", "value": False},              
+                    ],
+                    value=[],
+                    id="query_symbol_2",
+                    inline=True,
+                    style = {'display':'inline-block', "width":'140px'}
+                ),
+                dbc.Checklist(
+                    options=[
+                        {"label": "ETH", "value": False},              
+                    ],
+                    value=[],
+                    id="query_symbol_3",
+                    inline=True,
+                    style = {'display':'inline-block', "width":'100px'}
+                ),
+                dbc.Checklist(
+                    options=[
+                        {"label": "SOL", "value": False},              
+                    ],
+                    value=[],
+                    id="query_symbol_4",
+                    inline=True,
+                    style = {'display':'inline-block', "width":'100px'}
+                ),
+        ]),
+        html.Div([
+            dbc.Label("Granularity:  ", style = {"vertical-align": "middle"}),
+            dcc.Dropdown(
+                id="query_granularity",
+                options=["1MIN", "15MIN", "1H", "1D", "1M"],
+                value="1D",
+                clearable=False,
+                style = {'display':'inline-block', "width":'80px', "vertical-align": "middle"}
+            ),
+        ]),
+        html.Div([
+            dbc.Label("Condition:  ", style = {"vertical-align": "middle"}),
+            dcc.Dropdown(
+                id="condition_1_type",
+                options=["SMA"],
+                value="SMA",
+                clearable=False,
+                style = {'display':'inline-block', "width":'80px', "vertical-align": "middle", "height":"30px"}
+            ),
+            dcc.Input(
+                id="condition_1_value", type="number",
+                debounce=True, placeholder="value",
+                min=2,
+                style = {'display':'inline-block', 'margin-right':'0px','margin-left':'0px', "width":'60px', "height":"22px"}
+            ),
+            dcc.Dropdown(
+                id="equality",
+                options=[">", "=", "<"],
+                value=">",
+                clearable=False,
+                style = {'display':'inline-block', "width":'50px', "vertical-align": "middle", "height":"30px",  'margin-left':'10px', 'margin-right':'10px'}
+            ),
+             dcc.Dropdown(
+                id="condition_2_type",
+                options=["SMA"],
+                value="SMA",
+                clearable=False,
+                style = {'display':'inline-block', "width":'80px',  'margin-left':'10px', "vertical-align": "middle", "height":"30px"}
+            ),
+            dcc.Input(
+                id="condition_2_value", type="number",
+                debounce=True, placeholder="value",
+                min=2,
+                style = {'display':'inline-block','margin-left':'10px', "width":'60px', "height":"21px"}
+            ),
+        ])
+    ])
     
     @app.callback(
         Output("graph", "figure"),
@@ -183,6 +270,7 @@ if __name__ == '__main__':
             Input("sma_1", "value"),
             Input("sma_2", "value"),
         ],
+        
        )
     def display_graph(symbol, granularity, sma1_switch, sma2_switch, sma_1, sma_2):
         smas = [0] * 2
