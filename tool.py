@@ -7,7 +7,7 @@ import numpy as np
 from collections import defaultdict
 from plotly.subplots import make_subplots
 
-from dash import Dash, dcc, html, Input, Output
+from dash import Dash, dcc, html, Input, Output, State, dash_table
 import dash_bootstrap_components as dbc
 
 DATA_DIR = '../DATA/'
@@ -30,10 +30,15 @@ class ResearchTool():
         #df = df.iloc[10:190]
       
         self.dfs[symbol]["1MIN"] = df
-        self.dfs[symbol]["15MIN"] = df.resample("15min").agg(ta.CANGLE_AGG)
-        self.dfs[symbol]["1H"] = df.resample("1h").agg(ta.CANGLE_AGG)
-        self.dfs[symbol]["1D"] = df.resample("1d").agg(ta.CANGLE_AGG)
-        self.dfs[symbol]["1M"] = df.resample("1m").agg(ta.CANGLE_AGG)
+        self.dfs[symbol]["15MIN"] = df.resample("15min").agg(ta.CANGLE_AGG).copy()
+        self.dfs[symbol]["1H"] = df.resample("1h").agg(ta.CANGLE_AGG).copy()
+        self.dfs[symbol]["1D"] = df.resample("1d").agg(ta.CANGLE_AGG).copy()
+        self.dfs[symbol]["1M"] = df.resample("1m").agg(ta.CANGLE_AGG).copy()
+        
+        self.dfs[symbol]["15MIN"]['date'] = pd.to_datetime(self.dfs[symbol]["15MIN"].index)
+        self.dfs[symbol]["1H"]['date'] = pd.to_datetime(self.dfs[symbol]["1H"].index)
+        self.dfs[symbol]["1D"]['date'] = pd.to_datetime(self.dfs[symbol]["1D"].index)
+        self.dfs[symbol]["1M"]['date'] = pd.to_datetime(self.dfs[symbol]["1M"].index)
         
     
     
@@ -105,7 +110,38 @@ class ResearchTool():
         #file_name = f"{symbol}_chart.png"
         #fig.write_image(file_name, format="png")
         return fig
+    
+    def query(self, symbols, granularity, equality, condition_1_type, condition_1_value, condition_2_type, condition_2_value):
+        res = None
+        for symbol in symbols:
+            df = self.dfs[symbol][granularity]
+            if condition_1_type == "SMA" and condition_2_type == "SMA":
+                sma_1_col = "sma_{}".format(condition_1_value)
+                sma_2_col = "sma_{}".format(condition_2_value)
+                if sma_1_col not in df.columns:
+                    df[sma_1_col] = ta.sma(df['close'], length=condition_1_value)
+                if sma_2_col not in df.columns:
+                    df[sma_2_col] = ta.sma(df['close'], length=condition_2_value)
+                
+                if equality == ">":
+                    new_df = df.loc[df[sma_1_col] > df[sma_2_col]].copy()
+                elif equality == "<":
+                    new_df = df.loc[df[sma_1_col] < df[sma_2_col]].copy()
+                else:
+                    new_df = df.loc[df[sma_1_col] == df[sma_2_col]].copy()
+                new_df["symbol"] = symbol
+                new_df = new_df[["date", "symbol", 'open', 'high', 'low', 'close','volume', sma_1_col, sma_2_col]]
+                if res is None:
+                    res = new_df
+                else:
+                    res = pd.concat([res, new_df])
+        return self.get_query_table(res)
 
+    def get_query_table(self, df):
+        fig= dash_table.DataTable(df.to_dict('records'), [{"name": i, "id": i} for i in df.columns])
+        return fig
+
+                
 
 if __name__ == '__main__':
     #symbols = ["btcusdt"]
@@ -171,91 +207,102 @@ if __name__ == '__main__':
         dcc.Graph(id="graph"),
         
         html.H2('Query'),
-        html.Div([
-                dbc.Label("Assets:  "),
-                dbc.Checklist(
-                    options=[
-                        {"label": "BTC", "value": True},                
-                    ],
-                    value=[],
-                    id="query_symbol",
-                    inline=True,
-                    style = {'display':'inline-block', "width":'100px'}
-                ),
-                dbc.Checklist(
-                    options=[
-                        {"label": "DOGE", "value": False},              
-                    ],
-                    value=[],
-                    id="query_symbol_2",
-                    inline=True,
-                    style = {'display':'inline-block', "width":'140px'}
-                ),
-                dbc.Checklist(
-                    options=[
-                        {"label": "ETH", "value": False},              
-                    ],
-                    value=[],
-                    id="query_symbol_3",
-                    inline=True,
-                    style = {'display':'inline-block', "width":'100px'}
-                ),
-                dbc.Checklist(
-                    options=[
-                        {"label": "SOL", "value": False},              
-                    ],
-                    value=[],
-                    id="query_symbol_4",
-                    inline=True,
-                    style = {'display':'inline-block', "width":'100px'}
-                ),
-        ]),
-        html.Div([
-            dbc.Label("Granularity:  ", style = {"vertical-align": "middle"}),
-            dcc.Dropdown(
-                id="query_granularity",
-                options=["1MIN", "15MIN", "1H", "1D", "1M"],
-                value="1D",
-                clearable=False,
-                style = {'display':'inline-block', "width":'80px', "vertical-align": "middle"}
-            ),
-        ]),
-        html.Div([
-            dbc.Label("Condition:  ", style = {"vertical-align": "middle"}),
-            dcc.Dropdown(
-                id="condition_1_type",
-                options=["SMA"],
-                value="SMA",
-                clearable=False,
-                style = {'display':'inline-block', "width":'80px', "vertical-align": "middle", "height":"30px"}
-            ),
-            dcc.Input(
-                id="condition_1_value", type="number",
-                debounce=True, placeholder="value",
-                min=2,
-                style = {'display':'inline-block', 'margin-right':'0px','margin-left':'0px', "width":'60px', "height":"22px"}
-            ),
-            dcc.Dropdown(
-                id="equality",
-                options=[">", "=", "<"],
-                value=">",
-                clearable=False,
-                style = {'display':'inline-block', "width":'50px', "vertical-align": "middle", "height":"30px",  'margin-left':'10px', 'margin-right':'10px'}
-            ),
-             dcc.Dropdown(
-                id="condition_2_type",
-                options=["SMA"],
-                value="SMA",
-                clearable=False,
-                style = {'display':'inline-block', "width":'80px',  'margin-left':'10px', "vertical-align": "middle", "height":"30px"}
-            ),
-            dcc.Input(
-                id="condition_2_value", type="number",
-                debounce=True, placeholder="value",
-                min=2,
-                style = {'display':'inline-block','margin-left':'10px', "width":'60px', "height":"21px"}
-            ),
-        ])
+       
+        dbc.Form(
+            id="query",
+            children =[
+                dbc.Row([
+                    dbc.Label("Assets:  "),
+                    dbc.Checklist(
+                        options=[
+                            {"label": "BTC", "value": "btcusdt"},   
+                                      
+                        ],
+                        value=["btcusdt"],
+                        id="asset_1",
+                        inline=True,
+                        style = {'display':'inline-block', "width":'100px'}
+                    ),
+                    dbc.Checklist(
+                        options=[
+                            {"label": "DOGE", "value": "dogeusdt"},              
+                        ],
+                        value=[],
+                        id="asset_2",
+                        inline=True,
+                        style = {'display':'inline-block', "width":'140px'}
+                    ),
+                    dbc.Checklist(
+                        options=[
+                            {"label": "ETH", "value": "ethusdt"},              
+                        ],
+                        value=[],
+                        id="asset_3",
+                        inline=True,
+                        style = {'display':'inline-block', "width":'100px'}
+                    ),
+                    dbc.Checklist(
+                        options=[
+                            {"label": "SOL", "value": "solusdt"},              
+                        ],
+                        value=[],
+                        id="asset_4",
+                        inline=True,
+                        style = {'display':'inline-block', "width":'100px'}
+                    ),
+                ]),
+                dbc.Row([
+                    dbc.Label("Granularity:  ", style = {"vertical-align": "middle"}),
+                    dcc.Dropdown(
+                        id="query_granularity",
+                        options=["1MIN", "15MIN", "1H", "1D", "1M"],
+                        value="1D",
+                        clearable=False,
+                        style = {'display':'inline-block', "width":'80px', "vertical-align": "middle"}
+                    ),
+                ])
+                ,
+                dbc.Row([
+                    dbc.Label("Condition:  ", style = {"vertical-align": "middle"}),
+                    dcc.Dropdown(
+                        id="condition_1_type",
+                        options=["SMA"],
+                        value="SMA",
+                        clearable=False,
+                        style = {'display':'inline-block', "width":'80px', "vertical-align": "middle", "height":"30px"}
+                    ),
+                    dcc.Input(
+                        id="condition_1_value", type="number",
+                        debounce=True, placeholder="value",
+                        min=2,
+                        style = {'display':'inline-block', 'margin-right':'0px','margin-left':'0px', "width":'60px', "height":"22px"}
+                    ),
+                    dcc.Dropdown(
+                        id="condition_equality",
+                        options=[">", "=", "<"],
+                        value=">",
+                        clearable=False,
+                        style = {'display':'inline-block', "width":'50px', "vertical-align": "middle", "height":"30px",  'margin-left':'10px', 'margin-right':'10px'}
+                    ),
+                    dcc.Dropdown(
+                        id="condition_2_type",
+                        options=["SMA"],
+                        value="SMA",
+                        clearable=False,
+                        style = {'display':'inline-block', "width":'80px',  'margin-left':'10px', "vertical-align": "middle", "height":"30px"}
+                    ),
+                    dcc.Input(
+                        id="condition_2_value", type="number",
+                        debounce=True, placeholder="value",
+                        min=2,
+                        style = {'display':'inline-block','margin-left':'10px', "width":'60px', "height":"21px"}
+                    ),
+                ]),
+                dbc.Button("Submit", color="primary"),
+            ]
+            
+        ),
+        html.Div(id="query_table")
     ])
     
     @app.callback(
@@ -282,4 +329,33 @@ if __name__ == '__main__':
             
         fig = rt.plot_chart(symbol, granularity, smas)
         return fig
+    
+    
+    @app.callback(
+    Output("query_table", "children"),
+    Input("query", "n_submit"),
+    State("asset_1", "value"),
+    State("asset_2", "value"),
+    State("asset_3", "value"),
+    State("asset_4", "value"),
+    State("query_granularity", "value"),
+    State("condition_1_type", "value"),
+    State("condition_1_value", "value"),
+    State("condition_equality","value"),
+    State("condition_2_type", "value"),
+    State("condition_2_value", "value"),
+    prevent_initial_call=True
+    )
+    def handle_submit(n_submit, asset_1, asset_2, asset_3, asset_4, granularity, 
+                      condition_1_type, condition_1_value,equality, condition_2_type, condition_2_value):
+
+        symbols = []
+        for option in [asset_1, asset_2, asset_3, asset_4]:
+            symbols += option
+        if ((condition_1_value is not None) and ( condition_1_value is not None) and
+            (2 <= int(condition_1_value)) and (2 <= int(condition_2_value))):
+            fig = rt.query( symbols, granularity, equality, condition_1_type, int(condition_1_value), condition_2_type, int(condition_2_value))
+            return fig
+    
     app.run_server(debug=True)
+
