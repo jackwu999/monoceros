@@ -101,7 +101,8 @@ class ResearchTool():
                         'rangeslider': {'visible':True}
                     },
                 plot_bgcolor=palette["plot_bg_color"],
-                paper_bgcolor=palette["bg_color"])
+                paper_bgcolor=palette["bg_color"],
+                uirevision=True)
         fig.update_yaxes(visible=False, secondary_y=True, autorange=True)
         #  Change grid color
         fig.update_xaxes(showline=True, linewidth=1, linecolor=palette["grid_color"],gridcolor=palette["grid_color"])
@@ -138,7 +139,7 @@ class ResearchTool():
         return self.get_query_table(res)
 
     def get_query_table(self, df):
-        fig= dash_table.DataTable(df.to_dict('records'), [{"name": i, "id": i} for i in df.columns])
+        fig = dash_table.DataTable(df.to_dict('records'), [{"name": i, "id": i} for i in df.columns])
         return fig
 
                 
@@ -181,7 +182,7 @@ if __name__ == '__main__':
             ),
             dcc.Input(
                 id="sma_1", type="number",
-                debounce=True, placeholder="20",
+                debounce=True, placeholder="value",
                 min=2,
                 style = {'display':'inline-block', 'margin-right':'20px','margin-left':'10px', "width":'80px'}
             ),
@@ -199,11 +200,69 @@ if __name__ == '__main__':
             ),
             dcc.Input(
                 id="sma_2", type="number",
-                debounce=True, placeholder="20",
+                debounce=True, placeholder="value",
                 min=2,
                 style = {'display':'inline-block', 'margin-right':'20px','margin-left':'10px', "width":'80px'}
             ),
         ]),
+        html.Span([
+            dbc.Checklist(
+            options=[
+                {"label": "SMA3", "value": 1},
+            ],
+            value=[],
+            id="sma3_switch",
+            switch=True,
+            inline=True,
+            style = {'display':'inline-block', "width":'80px'}
+            ),
+            dcc.Input(
+                id="sma_3", type="number",
+                debounce=True, placeholder="value",
+                min=2,
+                style = {'display':'inline-block', 'margin-right':'20px','margin-left':'10px', "width":'80px'}
+            ),
+        ]),
+        
+        html.Span([
+            dbc.Checklist(
+            options=[
+                {"label": "SMA4", "value": 1},
+            ],
+            value=[],
+            id="sma4_switch",
+            switch=True,
+            inline=True,
+            style = {'display':'inline-block', "width":'80px'}
+            ),
+            dcc.Input(
+                id="sma_4", type="number",
+                debounce=True, placeholder="value",
+                min=2,
+                style = {'display':'inline-block', 'margin-right':'20px','margin-left':'10px', "width":'80px'}
+            ),
+        ]),
+        
+        html.Span([
+            dbc.Checklist(
+            options=[
+                {"label": "SMA5", "value": 1},
+            ],
+            value=[],
+            id="sma5_switch",
+            switch=True,
+            inline=True,
+            style = {'display':'inline-block', "width":'80px'}
+            ),
+            dcc.Input(
+                id="sma_5", type="number",
+                debounce=True, placeholder="value",
+                min=2,
+                style = {'display':'inline-block', 'margin-right':'20px','margin-left':'10px', "width":'80px'}
+            ),
+        ]),
+        
+        
         dcc.Graph(id="graph"),
         
         html.H2('Query'),
@@ -312,21 +371,34 @@ if __name__ == '__main__':
         [
             Input("sma1_switch", "value"),
             Input("sma2_switch", "value"),
+            Input("sma3_switch", "value"),
+            Input("sma4_switch", "value"),
+            Input("sma5_switch", "value"),
         ],
         [
             Input("sma_1", "value"),
             Input("sma_2", "value"),
+            Input("sma_3", "value"),
+            Input("sma_4", "value"),
+            Input("sma_5", "value"),
         ],
         
        )
-    def display_graph(symbol, granularity, sma1_switch, sma2_switch, sma_1, sma_2):
-        smas = [0] * 2
-       
+    def display_graph(symbol, granularity, sma1_switch, sma2_switch, sma3_switch, sma4_switch, sma5_switch,
+                      sma_1, sma_2, sma_3, sma_4, sma_5):
+        smas = [0] * 5
+        
         if sma1_switch and sma_1 is not None and sma_1>=2:
             smas[0] = sma_1
         if sma2_switch and sma_2 is not None and sma_2>=2:
             smas[1] = sma_2
-            
+        if sma3_switch and sma_3 is not None and sma_3>=2:
+            smas[2] = sma_3
+        if sma4_switch and sma_4 is not None and sma_4>=2:
+            smas[3] = sma_4
+        if sma5_switch and sma_5 is not None and sma_5>=2:
+            smas[4] = sma_5
+        
         fig = rt.plot_chart(symbol, granularity, smas)
         return fig
     
@@ -352,6 +424,7 @@ if __name__ == '__main__':
         symbols = []
         for option in [asset_1, asset_2, asset_3, asset_4]:
             symbols += option
+        print(symbols)
         if ((condition_1_value is not None) and ( condition_1_value is not None) and
             (2 <= int(condition_1_value)) and (2 <= int(condition_2_value))):
             fig = rt.query( symbols, granularity, equality, condition_1_type, int(condition_1_value), condition_2_type, int(condition_2_value))
