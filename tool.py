@@ -1,11 +1,13 @@
+from collections import defaultdict
 from pathlib import Path
-from plotly import graph_objects as go
+from typing import Optional
+
 import pandas as pd
 import pandas_ta as ta
-from collections import defaultdict
+from dash import Dash, Input, Output, State, dash_table
+from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 
-from dash import Dash, Input, Output, State, dash_table
 from layout import LAYOUT
 
 DATA_DIR = "../DATA/"
@@ -31,11 +33,11 @@ PALETTE = {
 
 
 class ResearchTool:
-    def __init__(self, symbols):
+    def __init__(self, symbols: list[str]) -> None:
         self.symbols = symbols
         self.dfs = defaultdict(dict)
 
-    def load_symbol_data(self, symbol):
+    def load_symbol_data(self, symbol: str) -> None:
         data_dir = Path(DATA_DIR + symbol)
         df = pd.concat(
             pd.read_parquet(parquet_file, engine="fastparquet")
@@ -58,7 +60,7 @@ class ResearchTool:
         self.dfs[symbol]["1D"]["date"] = pd.to_datetime(self.dfs[symbol]["1D"].index)
         self.dfs[symbol]["1M"]["date"] = pd.to_datetime(self.dfs[symbol]["1M"].index)
 
-    def load_all_data(self):
+    def load_all_data(self) -> None:
         for symbol in self.symbols:
             self.load_symbol_data(symbol)
 
@@ -81,7 +83,7 @@ class ResearchTool:
                     col=1,
                 )
 
-    def plot_chart(self, symbol, granularity, smas):
+    def plot_chart(self, symbol: str, granularity: str, smas: list[int]) -> go.Figure:
         df = self.dfs[symbol][granularity]
 
         #  Create sub plots
@@ -141,7 +143,7 @@ class ResearchTool:
             uirevision=True,
         )
         fig.update_yaxes(visible=False, secondary_y=True, autorange=True)
-        
+
         #  Change grid color
         fig.update_xaxes(
             showline=True,
@@ -161,14 +163,14 @@ class ResearchTool:
 
     def query(
         self,
-        symbols,
-        granularity,
-        equality,
-        condition_1_type,
-        condition_1_value,
-        condition_2_type,
-        condition_2_value,
-    ):
+        symbols: list[str],
+        granularity: str,
+        equality: str,
+        condition_1_type: str,
+        condition_1_value: int,
+        condition_2_type: str,
+        condition_2_value: int,
+    ) -> dash_table.DataTable:
         res = None
         for symbol in symbols:
             df = self.dfs[symbol][granularity]
@@ -206,7 +208,7 @@ class ResearchTool:
                     res = pd.concat([res, new_df])
         return self.get_query_table(res)
 
-    def get_query_table(self, df):
+    def get_query_table(self, df: pd.DataFrame) -> dash_table.DataTable:
         fig = dash_table.DataTable(
             df.to_dict("records"), [{"name": i, "id": i} for i in df.columns]
         )
@@ -237,19 +239,19 @@ if __name__ == "__main__":
         Input("sma_5", "value"),
     )
     def display_graph(
-        symbol,
-        granularity,
-        sma1_switch,
-        sma2_switch,
-        sma3_switch,
-        sma4_switch,
-        sma5_switch,
-        sma_1,
-        sma_2,
-        sma_3,
-        sma_4,
-        sma_5,
-    ):
+        symbol: str,
+        granularity: str,
+        sma1_switch: list[int],
+        sma2_switch: list[int],
+        sma3_switch: list[int],
+        sma4_switch: list[int],
+        sma5_switch: list[int],
+        sma_1: Optional[int],
+        sma_2: Optional[int],
+        sma_3: Optional[int],
+        sma_4: Optional[int],
+        sma_5: Optional[int],
+    ) -> go.Figure:
         smas = [sma_1, sma_2, sma_3, sma_4, sma_5]
         smas_switches = [
             sma1_switch,
@@ -258,7 +260,6 @@ if __name__ == "__main__":
             sma4_switch,
             sma5_switch,
         ]
-        print(smas)
         for i in range(len(smas)):
             if len(smas_switches[i]) == 0 or smas[i] is None or smas[i] < 2:
                 smas[i] = 0
@@ -282,17 +283,17 @@ if __name__ == "__main__":
     )
     def handle_submit(
         n_submit,
-        asset_1,
-        asset_2,
-        asset_3,
-        asset_4,
-        granularity,
-        condition_1_type,
-        condition_1_value,
-        equality,
-        condition_2_type,
-        condition_2_value,
-    ):
+        asset_1: list[str],
+        asset_2: list[str],
+        asset_3: list[str],
+        asset_4: list[str],
+        granularity: str,
+        condition_1_type: str,
+        condition_1_value: Optional[str],
+        equality: str,
+        condition_2_type: str,
+        condition_2_value: Optional[str],
+    ) -> dash_table.DataTable:
         symbols = []
         for option in [asset_1, asset_2, asset_3, asset_4]:
             symbols += option
